@@ -20,14 +20,16 @@ function _init()
 end
 
 function _update()
-    gravity()
-    player_movement()
+    update_gravity()
+    update_controls()
+    update_shots()
 end
 
 function _draw()
     cls()
     draw_map()
     player_animation()
+    draw_shots()
     draw_dashboard()
     debug()
     
@@ -42,7 +44,8 @@ function debug()
     -- local m = mget(x,y)
     -- print(fget(m,0),40,40,7)
 
-    print(#player.shots,40,20,7)
+    --print(#player.shots,40,20,7)
+    print(player.reload,40,20,7)
 end
 
 function init_player()
@@ -56,6 +59,7 @@ function init_player()
     p.width = 8
     p.height = 8
     p.shots = {}
+    p.reload = 1
     return p
 end
 
@@ -68,24 +72,28 @@ function draw_fuel_guage()
     if(player.fuel <= 0) then return end
 
     local amount = 39 + (player.fuel / 2)
-    local colour = get_guage_colour()
-    rectfill(39, 113, amount, 123, colour)
+    rectfill(39, 113, amount, 123, guage_clr())
 end
 
-function get_guage_colour()
-    if(player.fuel < 75 and player.fuel >= 50) then return 9
-    elseif(player.fuel < 50 and player.fuel >= 25) then return 10
+function guage_clr()
+    if(player.fuel < 75 and player.fuel >= 50) then return 10
+    elseif(player.fuel < 50 and player.fuel >= 25) then return 9
     elseif(player.fuel < 25 and player.fuel >= 0) then return 8
+    else return 11
     end
-
-    return 11
 end
 
 function draw_map()
     map(0,0, 0, 0, 16,14)
 end
 
-function gravity()
+function draw_shots()
+    for s in all(player.shots) do
+        line (s.x+9, s.y+5, s.x+20, s.y+5)
+    end
+end
+
+function update_gravity()
     if(btn(2) and player.fuel >= 0) then
         return
     end
@@ -98,47 +106,65 @@ function gravity()
     end
 end
 
-function player_movement()
+function update_shots()
+   for s in all(player.shots) do
+        if(s.flip == true) then
+            s.x -= 1
+        else
+            s.x += 1
+        end
+        s.frame += 1
+        if(s.frame > 20) then
+            del(player.shots, s)
+        end
+    end 
+end
+
+function update_controls()
     if (btn(0)) then 
-        move_left()
+        left()
     end
     
     if (btn(1)) then
-        move_right()
+        right()
     end
 
     if (btn(2)) then 
-        move_up()
+        up()
     end
     
     if (btn(3)) then 
-        move_down()
+        down()
     end
 
     if(btn(5)) then
         player.fuel = 100
     end
 
-    if(btn(4)) then
+    if(btnp(4)) then
         shoot()
+    end
+
+    if(btn(4)) then
+        delay_shoot()
     end
 end
 
-function move_left()
+function left()
     if(not solid(player.x-1, player.y)) then
         player.x = player.x - 1
     end
     player.flip = true
 end
 
-function move_right()
+function right()
     if(not solid(player.x+player.width, player.y)) then
         player.x = player.x + 1
     end
     player.flip = false
 end
 
-function move_up()
+function up()
     if(player.fuel <= 0) then
         return
     end
@@ -150,7 +176,7 @@ function move_up()
     burn_fuel()
 end
 
-function move_down()
+function down()
     --if(player.y < 104) then
     if(not solid(player.x, player.y+player.height)) then
         player.y = player.y + 1
@@ -161,7 +187,21 @@ function shoot()
     local shot = {}
     shot.frame = 0
     shot.x = player.x
+    if(player.flip) then
+        shot.x -= 22
+    end
+    shot.y = player.y
+    shot.flip = player.flip
     add(player.shots, shot)
+    p.reload = 1
+end
+
+function delay_shoot()
+    if(10 / p.reload == 1) then
+        shoot()
+    else
+        p.reload += 1
+    end
 end
 
 function solid(x,y)
